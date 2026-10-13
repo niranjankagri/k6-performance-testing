@@ -61,7 +61,7 @@ export const options = {
     order_handled: ['rate==1'],
     // Waiting time stays bounded, because the queue is bounded
     checkout_duration: [{ threshold: 'p(95)<1500', abortOnFail: true, delayAbortEval: '20s' }],
-    // Reads keep working while checkout is saturated
+    // The rest of the shop (here: adding to the cart) keeps working while checkout is saturated
     'http_req_duration{name:POST /api/cart/items}': ['p(95)<300'],
     // Refused orders are the only expected failures: a few percent of all requests at most
     http_req_failed: [{ threshold: 'rate<0.10', abortOnFail: true, delayAbortEval: '20s' }],
