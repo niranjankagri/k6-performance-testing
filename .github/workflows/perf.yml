@@ -1,0 +1,171 @@
+# Performance pipeline: checks first, then a smoke test as the gate, then the bigger tests in parallel.
+# Every job starts its own QuickShop on the runner, so the tests measure only the app and never put load
+# on a shared environment. A threshold that is not met makes k6 exit with 99 and fails the job.
+# Every test job writes its result table to the run summary and keeps the HTML report as an artifact.
+name: Performance
+
+on:
+  push:
+  pull_request:
+  # Nightly: all tests including the soak test
+  schedule:
+    - cron: '0 3 * * *'
+  # Manual run: pick a test and a profile; "regression-demo" shows a failing threshold on purpose
+  workflow_dispatch:
+    inputs:
+      test:
+        description: Which test
+        type: choice
+        options: [all, smoke, load, stress, spike, soak, regression-demo]
+        default: all
+      profile:
+        description: Load profile (full = realistic sizes and durations, up to hours)
+        type: choice
+        options: [ci, full]
+        default: ci
+
+env:
+  NODE_VERSION: '24'
+  K6_VERSION: '2.3.0'
+  PROFILE: ${{ inputs.profile || 'ci' }}
+
+jobs:
+  checks:
+    name: Lint + app tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: ESLint + Prettier
+        run: npm run lint
+      # The load tests only mean something if the app answers correctly
+      - name: App functional tests
+        run: npm run test:app
+
+  smoke:
+    name: Smoke test (gate)
+    needs: checks
+    if: ${{ !inputs.test || inputs.test == 'all' || inputs.test == 'smoke' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: grafana/setup-k6-action@v1
+        with:
+          k6-version: ${{ env.K6_VERSION }}
+      - name: Start QuickShop
+        run: |
+          node app/server.js &
+          curl --silent --retry 10 --retry-connrefused --retry-delay 1 http://localhost:3000/health
+      - name: k6 smoke
+        run: k6 run --quiet k6/tests/smoke.js
+        env:
+          K6_WEB_DASHBOARD: 'true'
+          K6_WEB_DASHBOARD_EXPORT: reports/smoke-report.html
+      - name: Summary
+        if: always()
+        run: |
+          cat reports/smoke-summary.md >> "$GITHUB_STEP_SUMMARY" || echo "No summary: k6 did not finish" >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: report-smoke
+          path: reports/
+          if-no-files-found: ignore
+
+  performance:
+    name: ${{ matrix.test }} test
+    # Only after the smoke test passed: no point loading a broken build
+    needs: smoke
+    if: >-
+      ${{ always() && needs.smoke.result != 'failure' && needs.smoke.result != 'cancelled'
+      && (!inputs.test || inputs.test == 'all' || inputs.test == matrix.test) }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test: [load, stress, spike, soak]
+        include:
+          # Stress is about throughput: no think time between requests
+          - test: stress
+            think: '0'
+    steps:
+      - name: Soak runs nightly and on demand only
+        id: gate
+        run: |
+          if [ "${{ matrix.test }}" = "soak" ] && [ "${{ github.event_name }}" != "schedule" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v7
+        if: steps.gate.outputs.skip != 'true'
+      - uses: actions/setup-node@v7
+        if: steps.gate.outputs.skip != 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: grafana/setup-k6-action@v1
+        if: steps.gate.outputs.skip != 'true'
+        with:
+          k6-version: ${{ env.K6_VERSION }}
+      - name: Start QuickShop
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          node app/server.js &
+          curl --silent --retry 10 --retry-connrefused --retry-delay 1 http://localhost:3000/health
+      - name: k6 ${{ matrix.test }}
+        if: steps.gate.outputs.skip != 'true'
+        run: k6 run --quiet -e THINK=${{ matrix.think || '1' }} k6/tests/${{ matrix.test }}.js
+        env:
+          K6_WEB_DASHBOARD: 'true'
+          K6_WEB_DASHBOARD_EXPORT: reports/${{ matrix.test }}-report.html
+      - name: Summary
+        if: always() && steps.gate.outputs.skip != 'true'
+        run: |
+          cat reports/${{ matrix.test }}-summary.md >> "$GITHUB_STEP_SUMMARY" || echo "No summary: k6 did not finish" >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the report
+        if: always() && steps.gate.outputs.skip != 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: report-${{ matrix.test }}
+          path: reports/
+          if-no-files-found: ignore
+
+  regression-demo:
+    name: Regression demo (fails on purpose)
+    needs: checks
+    if: ${{ inputs.test == 'regression-demo' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: grafana/setup-k6-action@v1
+        with:
+          k6-version: ${{ env.K6_VERSION }}
+      # The same app, but every checkout takes 300 ms longer: a "slow release"
+      - name: Start a slow QuickShop
+        run: |
+          CHECKOUT_DELAY_MS=300 node app/server.js &
+          curl --silent --retry 10 --retry-connrefused --retry-delay 1 http://localhost:3000/health
+      - name: k6 load (expected to fail on the checkout threshold)
+        run: k6 run --quiet k6/tests/load.js
+        env:
+          K6_WEB_DASHBOARD: 'true'
+          K6_WEB_DASHBOARD_EXPORT: reports/load-report.html
+      - name: Summary
+        if: always()
+        run: cat reports/load-summary.md >> "$GITHUB_STEP_SUMMARY" || true
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: report-regression-demo
+          path: reports/
+          if-no-files-found: ignore
