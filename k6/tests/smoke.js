@@ -4,11 +4,8 @@
 //
 //   k6 run k6/tests/smoke.js
 
-import { check, fail } from 'k6';
-
-import * as api from '../lib/api.js';
 import { byProfile } from '../lib/config.js';
-import { browse, buy } from '../lib/flows.js';
+import { browse, buy, requireHealthyApp } from '../lib/flows.js';
 import { summaryFor } from '../lib/summary.js';
 import { RESPONSE_TIMES } from '../lib/thresholds.js';
 
@@ -22,12 +19,9 @@ export const options = {
   },
 };
 
-/** Runs once before the test: stop at once if the app is not up, instead of 30 s of errors. */
+/** Runs once before the test starts. */
 export function setup() {
-  const res = api.health();
-  if (!check(res, { 'health: status 200': (r) => r.status === 200 })) {
-    fail(`QuickShop is not reachable: HTTP ${res.status} ${res.error}`);
-  }
+  requireHealthyApp();
 }
 
 export default function () {

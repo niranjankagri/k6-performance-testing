@@ -16,6 +16,15 @@ export const checkoutDuration = new Trend('checkout_duration', true); // true = 
 export const ordersPlaced = new Counter('orders_placed');
 export const orderSuccess = new Rate('order_success');
 
+/** For setup(): stop at once if the app is not up, instead of minutes of connection errors. */
+export function requireHealthyApp() {
+  const res = api.health();
+  if (!check(res, { 'health: status 200': (r) => r.status === 200 })) {
+    fail(`QuickShop is not reachable at its BASE_URL: HTTP ${res.status} ${res.error}`);
+  }
+  return res.json();
+}
+
 /** A pause like a real user reading the page: 1-3 s, scaled with THINK (0 in a pure throughput test). */
 export function think(min = 1, max = 3) {
   if (THINK > 0) sleep((min + Math.random() * (max - min)) * THINK);

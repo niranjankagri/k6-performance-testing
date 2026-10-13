@@ -33,6 +33,16 @@ function endpointRows(metrics) {
     });
 }
 
+/** The checkout's own Trend (the order endpoint has no name-tag threshold of its own). */
+function checkoutRow(metrics) {
+  const v = metrics.checkout_duration?.values;
+  return v
+    ? [
+        `| POST /api/orders (checkout_duration) | ${ms(v.med)} | ${ms(v['p(90)'])} | ${ms(v['p(95)'])} | ${ms(v.max)} |`,
+      ]
+    : [];
+}
+
 export function markdown(testName, data) {
   const m = data.metrics;
   const failed = Object.values(m)
@@ -51,6 +61,7 @@ export function markdown(testName, data) {
     '| Endpoint | median | p90 | p95 | max |',
     '|---|---|---|---|---|',
     ...endpointRows(m),
+    ...checkoutRow(m),
     '',
     '| Metric | Threshold | Result |',
     '|---|---|---|',
