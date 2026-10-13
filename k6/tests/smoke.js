@@ -19,14 +19,16 @@ export const options = {
   },
 };
 
-/** Runs once before the test starts. */
+/** Runs once before the load starts: stops the test at once if QuickShop is not up. */
 export function setup() {
   requireHealthyApp();
 }
 
+/** One iteration of the single VU: a visit, then an order. */
 export default function () {
   browse();
   buy();
 }
 
+// End of test: console summary, reports/smoke-summary.json and .md (see lib/summary.js)
 export const handleSummary = summaryFor('smoke');

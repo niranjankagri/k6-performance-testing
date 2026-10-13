@@ -58,16 +58,20 @@ export const options = {
   },
 };
 
+/** Runs once before the load starts: stops the test at once if QuickShop is not up. */
 export function setup() {
   requireHealthyApp();
 }
 
+/** The `visitor_spike` scenario's iteration (its `exec`): one visit of an anonymous visitor. */
 export function browsing() {
   browse();
 }
 
+/** The `steady_orders` scenario's iteration (its `exec`): one order by a logged-in customer. */
 export function buying() {
   buy();
 }
 
+// End of test: console summary, reports/spike-summary.json and .md (see lib/summary.js)
 export const handleSummary = summaryFor('spike');

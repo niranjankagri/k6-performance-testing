@@ -56,18 +56,22 @@ export const options = {
   },
 };
 
+/** Runs once before the load: stops if QuickShop is not up; hands its starting memory to teardown(). */
 export function setup() {
   return { startRssMb: requireHealthyApp().rssMb };
 }
 
+/** The `browsers` scenario's iteration (its `exec`): one visit of an anonymous visitor. */
 export function browsing() {
   browse();
 }
 
+/** The `buyers` scenario's iteration (its `exec`): one order by a logged-in customer. */
 export function buying() {
   buy();
 }
 
+/** The `server_monitor` scenario's iteration, every 10 s: records the server's memory (rssMb). */
 export function watchServer() {
   const res = api.health();
   if (check(res, { 'health: status 200': (r) => r.status === 200 })) {
@@ -86,4 +90,5 @@ export function teardown(data) {
   }
 }
 
+// End of test: console summary, reports/soak-summary.json and .md (see lib/summary.js)
 export const handleSummary = summaryFor('soak');
