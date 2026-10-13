@@ -1,5 +1,6 @@
 node_modules/
-reports/
+reports/*
+!reports/.gitkeep
 *.log
 .idea/
 .vscode/
