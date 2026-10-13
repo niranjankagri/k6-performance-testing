@@ -1,0 +1,22 @@
+{
+  "name": "k6-performance-testing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Performance tests with Grafana k6 for a small shop API kept in this repository",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node app/server.js",
+    "test:app": "node --test app/*.test.js",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.12.0",
+    "globals": "17.13.0",
+    "prettier": "3.9.10"
+  }
+}
