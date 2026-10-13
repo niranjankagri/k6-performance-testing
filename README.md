@@ -42,6 +42,7 @@ endpoint waits a little, like a real one, and search is the slowest read.
 | `GET /health` | status, uptime, server memory (`rssMb`), number of orders | at once |
 
 These environment variables change the app's behaviour for experiments:
+
 - `PORT`;
 - `CHECKOUT_DELAY_MS`, which simulates a "slow release";
 - `DB_POOL_SIZE`;
@@ -129,6 +130,7 @@ What happens in `k6 run k6/tests/load.js`:
 | `soak.js` | is it as fast after hours as after minutes? | 10 visitors + 2 orders/s for 4 min (full: 4 h) | all SLOs met; server memory within budget |
 
 The **SLOs** are in `k6/lib/thresholds.js`. The p95 response time per endpoint must stay under:
+
 - products list: 200 ms;
 - one product: 150 ms;
 - search: 300 ms;
@@ -139,6 +141,7 @@ The **SLOs** are in `k6/lib/thresholds.js`. The p95 response time per endpoint m
 Also, fewer than 1% of requests may fail, and more than 99% of checks and orders must succeed.
 
 Each test has two sizes:
+
 - **`PROFILE=ci`** (the default) runs in minutes on a laptop or a CI runner.
 - **`PROFILE=full`** has realistic sizes and durations for a dedicated environment, for example 200 visitors and
   20 orders/s for 20 minutes, or a 4-hour soak.
@@ -153,6 +156,7 @@ stopped the run.
 
 The fix (commit `a1989a2`): when 40 checkouts already wait for a connection, a new one gets `503 Service Unavailable`
 with `Retry-After: 1` at once. The same stress test then ran through all its steps:
+
 - 10,639 orders placed and 1,350 refused;
 - the slowest checkout took 624 ms;
 - every answer was correct, and reads were not affected.
@@ -243,6 +247,7 @@ an SLO of 400 ms, so the run fails:
    demand.
 
 Every test job:
+
 - starts its own QuickShop;
 - installs k6 with `grafana/setup-k6-action`;
 - writes the Markdown summary to the run summary page;
@@ -256,3 +261,5 @@ production, run `PROFILE=full` from dedicated load generators against a producti
 ## More
 
 - [docs/framework-design.md](docs/framework-design.md): the design decisions and their reasons.
+- [docs/interview-questions.md](docs/interview-questions.md) ([PDF](docs/interview-questions.pdf)): 78 performance
+  testing and k6 interview questions, each linked to the code here.
