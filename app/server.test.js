@@ -35,7 +35,9 @@ async function loginAs(username) {
 test('health check answers ok', async () => {
   const res = await call('GET', '/health');
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { status: 'ok' });
+  const body = await res.json();
+  assert.equal(body.status, 'ok');
+  assert.ok(body.rssMb > 0 && Number.isInteger(body.orders));
 });
 
 test('login returns a token, and refuses a wrong password or missing fields', async () => {

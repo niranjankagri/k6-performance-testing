@@ -6,7 +6,7 @@
 //   DB_POOL_SIZE=4 node app/server.js          # a smaller "database pool": saturates sooner
 //
 // Endpoints (JSON in and out; the cart and orders need "Authorization: Bearer <token>"):
-//   GET    /health
+//   GET    /health                -> { status, uptimeSeconds, rssMb, orders } (the soak test watches rssMb)
 //   POST   /api/auth/login        { username, password }  -> 200 { token } | 400 | 401
 //   GET    /api/products          ?category=&limit=
 //   GET    /api/products/:id
@@ -52,7 +52,15 @@ async function handle(req, res) {
   const path = url.pathname;
   const method = req.method;
 
-  if (method === 'GET' && path === '/health') return send(res, 200, { status: 'ok' });
+  if (method === 'GET' && path === '/health') {
+    return send(res, 200, {
+      status: 'ok',
+      uptimeSeconds: Math.round(process.uptime()),
+      // Memory of the server process: a soak test watches it grow (or not) over hours
+      rssMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+      orders: shop.orderCount(),
+    });
+  }
 
   if (method === 'POST' && path === '/api/auth/login') {
     const body = await readJson(req);

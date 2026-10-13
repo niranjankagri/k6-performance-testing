@@ -106,3 +106,6 @@ export function placeOrder(username) {
 }
 
 export const findOrder = (id) => orders.get(id);
+
+/** Orders are kept in memory for the life of the process (the soak test shows what that costs). */
+export const orderCount = () => orders.size;
