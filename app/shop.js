@@ -33,12 +33,14 @@ export const delay = (min, max) =>
 
 /** A counting semaphore: at most `size` holders, the rest wait in a FIFO queue. */
 export class Pool {
+  /** @param {number} size how many holders may be in at the same time (the number of connections) */
   constructor(size) {
     this.size = size;
     this.inUse = 0;
     this.queue = [];
   }
 
+  /** Takes a slot, waiting in line (first come, first served) while all slots are taken. */
   async acquire() {
     if (this.inUse < this.size) {
       this.inUse++;
@@ -48,6 +50,7 @@ export class Pool {
     await new Promise((resolve) => this.queue.push(resolve));
   }
 
+  /** Gives the slot back: straight to the next one in line, or free again if nobody waits. */
   release() {
     const next = this.queue.shift();
     if (next) next();
@@ -55,6 +58,7 @@ export class Pool {
   }
 }
 
+/** Checks the credentials; returns a new session token, or null for a wrong username or password. */
 export function login(username, password) {
   const user = users.get(username);
   if (!user || user.password !== password) return null;
@@ -63,13 +67,16 @@ export function login(username, password) {
   return token;
 }
 
+/** The username a token belongs to, or undefined for an unknown token. */
 export const userForToken = (token) => tokens.get(token);
 
+/** Products, optionally of one category only, at most `limit` of them. */
 export function listProducts({ category, limit }) {
   const found = category ? products.filter((p) => p.category === category) : products;
   return found.slice(0, limit);
 }
 
+/** One product by id, or undefined. */
 export const findProduct = (id) => products.find((p) => p.id === id);
 
 /** Full-text search over the names: deliberately the most expensive read (scores and sorts everything). */
@@ -82,6 +89,7 @@ export function search(query) {
     .map((r) => r.p);
 }
 
+/** The user's cart (productId -> quantity), created empty on first use. */
 export function cartOf(username) {
   if (!carts.has(username)) carts.set(username, new Map());
   return carts.get(username);
@@ -97,6 +105,7 @@ export function cartView(username) {
   return { items, total };
 }
 
+/** Turns the cart into an order with a new id and the cart's total, then empties the cart. */
 export function placeOrder(username) {
   const view = cartView(username);
   const order = { id: randomUUID(), username, ...view, createdAt: new Date().toISOString() };
@@ -105,6 +114,7 @@ export function placeOrder(username) {
   return order;
 }
 
+/** An order by id, or undefined; the route checks that it belongs to the caller. */
 export const findOrder = (id) => orders.get(id);
 
 /** Orders are kept in memory for the life of the process (the soak test shows what that costs). */

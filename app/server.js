@@ -30,11 +30,13 @@ const dbPool = new shop.Pool(Number(process.env.DB_POOL_SIZE ?? 8));
 // Found by the stress test; 0 switches it off to reproduce the original behaviour.
 const MAX_WAITING = Number(process.env.MAX_WAITING ?? 40);
 
+/** Writes a JSON response (an empty body for 204). */
 const send = (res, status, body) => {
   res.writeHead(status, { 'Content-Type': 'application/json' });
   res.end(body === undefined ? '' : JSON.stringify(body));
 };
 
+/** Reads the request body as JSON: {} when empty, null when it is not valid JSON (the routes answer 400). */
 async function readJson(req) {
   let raw = '';
   for await (const chunk of req) raw += chunk;
@@ -52,11 +54,16 @@ function authUser(req) {
   return header.startsWith('Bearer ') ? shop.userForToken(header.slice(7)) : undefined;
 }
 
+/**
+ * Routes one request: matches method + path in the order of the endpoint list at the top of the file.
+ * Most routes wait a short random time (shop.delay) to behave like a real service with a database.
+ */
 async function handle(req, res) {
   const url = new URL(req.url, 'http://localhost');
   const path = url.pathname;
   const method = req.method;
 
+  // Health: no login, no delay; reports memory and order count for the soak test
   if (method === 'GET' && path === '/health') {
     return send(res, 200, {
       status: 'ok',
@@ -67,6 +74,7 @@ async function handle(req, res) {
     });
   }
 
+  // Login: both fields required (400), wrong credentials 401
   if (method === 'POST' && path === '/api/auth/login') {
     const body = await readJson(req);
     if (!body?.username || !body?.password)
@@ -76,12 +84,14 @@ async function handle(req, res) {
     return token ? send(res, 200, { token }) : send(res, 401, { error: 'invalid username or password' });
   }
 
+  // Product list, optional ?category=, at most 50
   if (method === 'GET' && path === '/api/products') {
     const limit = Math.min(Number(url.searchParams.get('limit') ?? 20), 50);
     await shop.delay(10, 30);
     return send(res, 200, shop.listProducts({ category: url.searchParams.get('category'), limit }));
   }
 
+  // One product by numeric id
   const productMatch = path.match(/^\/api\/products\/(\d+)$/);
   if (method === 'GET' && productMatch) {
     await shop.delay(5, 15);
@@ -89,6 +99,7 @@ async function handle(req, res) {
     return product ? send(res, 200, product) : send(res, 404, { error: 'product not found' });
   }
 
+  // Search: q needs at least 2 characters
   if (method === 'GET' && path === '/api/search') {
     const q = url.searchParams.get('q') ?? '';
     if (q.length < 2) return send(res, 400, { error: 'q needs at least 2 characters' });
@@ -101,11 +112,13 @@ async function handle(req, res) {
     const user = authUser(req);
     if (!user) return send(res, 401, { error: 'missing or invalid token' });
 
+    // Read the cart
     if (method === 'GET' && path === '/api/cart') {
       await shop.delay(5, 15);
       return send(res, 200, shop.cartView(user));
     }
 
+    // Add a product to the cart: integer productId, quantity 1-10
     if (method === 'POST' && path === '/api/cart/items') {
       const body = await readJson(req);
       const quantity = body?.quantity;
@@ -124,11 +137,13 @@ async function handle(req, res) {
       return send(res, 201, shop.cartView(user));
     }
 
+    // Empty the cart
     if (method === 'DELETE' && path === '/api/cart') {
       shop.cartOf(user).clear();
       return send(res, 204);
     }
 
+    // Check out: needs a non-empty cart and a free database connection
     if (method === 'POST' && path === '/api/orders') {
       if (shop.cartOf(user).size === 0) return send(res, 409, { error: 'the cart is empty' });
       // The bottleneck: every checkout needs one of the few database connections
@@ -145,6 +160,7 @@ async function handle(req, res) {
       }
     }
 
+    // Read one of your own orders
     const orderMatch = path.match(/^\/api\/orders\/([\w-]+)$/);
     if (method === 'GET' && orderMatch) {
       await shop.delay(10, 20);
@@ -159,6 +175,10 @@ async function handle(req, res) {
   return send(res, 404, { error: 'not found' });
 }
 
+/**
+ * Starts the HTTP server and resolves once it listens. Port 0 picks a free port (used by the tests).
+ * An unexpected error in a route becomes a 500 instead of crashing the process.
+ */
 export function startServer(port = Number(process.env.PORT ?? 3000)) {
   const server = createServer((req, res) => {
     handle(req, res).catch((error) => {
