@@ -1,0 +1,108 @@
+// User journeys: what one virtual user (VU) does in one iteration. Tests choose the journeys and
+// the load; the steps, checks and custom metrics live here, once.
+//
+//   browse() - an anonymous visitor: product list, a category, a product, a search
+//   buy()    - a logged-in customer: clear cart, add 1-3 products, view cart, order, read the order
+
+import { check, fail, group, sleep } from 'k6';
+import { Counter, Rate, Trend } from 'k6/metrics';
+
+import * as api from './api.js';
+import { THINK } from './config.js';
+import { CATEGORIES, PRODUCT_COUNT, randomInt, randomItem, SEARCH_TERMS, userForVu } from './data.js';
+
+// Business metrics, next to k6's built-in http_* metrics
+export const checkoutDuration = new Trend('checkout_duration', true); // true = a time, shown in ms
+export const ordersPlaced = new Counter('orders_placed');
+export const orderSuccess = new Rate('order_success');
+
+/** A pause like a real user reading the page: 1-3 s, scaled with THINK (0 in a pure throughput test). */
+export function think(min = 1, max = 3) {
+  if (THINK > 0) sleep((min + Math.random() * (max - min)) * THINK);
+}
+
+export function browse() {
+  group('browse', () => {
+    const list = api.listProducts();
+    check(list, {
+      'products: status 200': (r) => r.status === 200,
+      'products: 20 returned': (r) => r.json().length === 20,
+    });
+    think();
+
+    const category = randomItem(CATEGORIES);
+    check(api.listProducts(category), {
+      'category: only that category': (r) =>
+        r.status === 200 && r.json().every((p) => p.category === category),
+    });
+    think();
+
+    const id = randomInt(1, PRODUCT_COUNT);
+    check(api.getProduct(id), {
+      'product: status 200': (r) => r.status === 200,
+      'product: right id': (r) => r.json('id') === id,
+    });
+    think();
+
+    check(api.search(randomItem(SEARCH_TERMS)), {
+      'search: status 200': (r) => r.status === 200,
+      'search: found something': (r) => r.json().length > 0,
+    });
+    think();
+  });
+}
+
+// Each VU runs in its own JavaScript runtime, so this variable is per VU: every VU logs in once
+// and reuses its token, the way a real user's session lasts for many page views.
+let token;
+
+function ensureLoggedIn() {
+  if (token) return token;
+  const user = userForVu(__VU);
+  const res = api.login(user.username, user.password);
+  const ok = check(res, {
+    'login: status 200': (r) => r.status === 200,
+    'login: token returned': (r) => typeof r.json('token') === 'string',
+  });
+  // Without a token the rest of the journey is meaningless: end this iteration (counted as failed)
+  if (!ok) fail(`login failed for ${user.username}: HTTP ${res.status}`);
+  token = res.json('token');
+  return token;
+}
+
+export function buy() {
+  group('buy', () => {
+    const auth = ensureLoggedIn();
+    // A previous iteration may have stopped half-way (for example at the end of a test): start clean
+    api.clearCart(auth);
+
+    const lines = randomInt(1, 3);
+    for (let i = 0; i < lines; i++) {
+      check(api.addToCart(auth, randomInt(1, PRODUCT_COUNT), randomInt(1, 3)), {
+        'add to cart: status 201': (r) => r.status === 201,
+      });
+      think(0.5, 1.5);
+    }
+
+    const cart = api.getCart(auth);
+    check(cart, {
+      'cart: all lines there': (r) => r.status === 200 && r.json('items').length > 0,
+    });
+    think();
+
+    const order = api.placeOrder(auth);
+    checkoutDuration.add(order.timings.duration);
+    const placed = check(order, {
+      'order: status 201': (r) => r.status === 201,
+      'order: total matches the cart': (r) => r.status === 201 && r.json('total') === cart.json('total'),
+    });
+    orderSuccess.add(placed);
+    if (!placed) return;
+    ordersPlaced.add(1);
+
+    check(api.getOrder(auth, order.json('id')), {
+      'order details: status 200': (r) => r.status === 200,
+    });
+    think();
+  });
+}
