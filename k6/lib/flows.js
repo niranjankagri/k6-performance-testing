@@ -35,8 +35,10 @@ export function think(min = 1, max = 3) {
   if (THINK > 0) sleep((min + Math.random() * (max - min)) * THINK);
 }
 
+/** An anonymous visitor: product list, one category, one product, one search, with pauses in between. */
 export function browse() {
   group('browse', () => {
+    // The home page: the first 20 products
     const list = api.listProducts();
     check(list, {
       'products: status 200': (r) => r.status === 200,
@@ -44,6 +46,7 @@ export function browse() {
     });
     think();
 
+    // A category page: every product shown must be of that category
     const category = randomItem(CATEGORIES);
     check(api.listProducts(category), {
       'category: only that category': (r) =>
@@ -51,6 +54,7 @@ export function browse() {
     });
     think();
 
+    // A product page: the product asked for, not another one
     const id = randomInt(1, PRODUCT_COUNT);
     check(api.getProduct(id), {
       'product: status 200': (r) => r.status === 200,
@@ -58,6 +62,7 @@ export function browse() {
     });
     think();
 
+    // A search with a term that always has hits
     check(api.search(randomItem(SEARCH_TERMS)), {
       'search: status 200': (r) => r.status === 200,
       'search: found something': (r) => r.json().length > 0,
@@ -70,6 +75,7 @@ export function browse() {
 // and reuses its token, the way a real user's session lasts for many page views.
 let token;
 
+/** Logs this VU's user in on its first call and returns the token; later calls reuse it. */
 function ensureLoggedIn() {
   if (token) return token;
   const user = userForVu(__VU);
@@ -84,12 +90,17 @@ function ensureLoggedIn() {
   return token;
 }
 
+/**
+ * A logged-in customer places one order: clear the cart, add 1-3 products, read the cart, check out,
+ * read the order back. Records the checkout time and whether the order was placed, refused or failed.
+ */
 export function buy() {
   group('buy', () => {
     const auth = ensureLoggedIn();
     // A previous iteration may have stopped half-way (for example at the end of a test): start clean
     api.clearCart(auth);
 
+    // 1-3 add-to-cart steps, each with a random product and 1-3 items
     const lines = randomInt(1, 3);
     for (let i = 0; i < lines; i++) {
       check(api.addToCart(auth, randomInt(1, PRODUCT_COUNT), randomInt(1, 3)), {
@@ -98,12 +109,14 @@ export function buy() {
       think(0.5, 1.5);
     }
 
+    // The cart page: its total is what the order must charge
     const cart = api.getCart(auth);
     check(cart, {
       'cart: all lines there': (r) => r.status === 200 && r.json('items').length > 0,
     });
     think();
 
+    // Checkout: the step the SLOs watch most closely
     const order = api.placeOrder(auth);
     checkoutDuration.add(order.timings.duration);
     const placed = check(order, {
@@ -117,6 +130,7 @@ export function buy() {
     if (!placed) return;
     ordersPlaced.add(1);
 
+    // The order confirmation page
     check(api.getOrder(auth, order.json('id')), {
       'order details: status 200': (r) => r.status === 200,
     });

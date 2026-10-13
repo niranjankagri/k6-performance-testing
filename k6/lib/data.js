@@ -22,5 +22,7 @@ export const PRODUCT_COUNT = 50;
 /** A different user for every VU, so carts and orders of parallel VUs never mix. */
 export const userForVu = (vu) => users[(vu - 1) % users.length];
 
+/** A random element of a list. */
 export const randomItem = (list) => list[Math.floor(Math.random() * list.length)];
+/** A random whole number from min to max, both included. */
 export const randomInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));

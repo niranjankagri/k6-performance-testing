@@ -9,6 +9,7 @@
 
 import { textSummary } from 'https://jslib.k6.io/k6-summary/0.1.0/index.js';
 
+/** A time in whole milliseconds, or '-' when k6 has no value for it. */
 const ms = (value) => (value === undefined ? '-' : `${value.toFixed(0)} ms`);
 
 /** One Markdown row per threshold: metric, rule, pass/fail. */
@@ -43,6 +44,7 @@ function checkoutRow(metrics) {
     : [];
 }
 
+/** The Markdown report: a verdict line, totals, response times per endpoint and every threshold. */
 export function markdown(testName, data) {
   const m = data.metrics;
   const failed = Object.values(m)
@@ -70,6 +72,7 @@ export function markdown(testName, data) {
   ].join('\n');
 }
 
+/** Builds the handleSummary function of one test; the name is used in the file names under reports/. */
 export function summaryFor(testName) {
   return (data) => ({
     stdout: textSummary(data, { indent: ' ', enableColors: true }),

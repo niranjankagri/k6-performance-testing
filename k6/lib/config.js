@@ -6,6 +6,7 @@
 //               full - the realistic sizes and durations, for a dedicated test environment
 //   THINK     multiplier for the pauses between user actions (0 = no pauses)   default 1
 
+// Without a trailing slash, so paths can be appended as `${BASE_URL}/api/...`
 export const BASE_URL = (__ENV.BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
 export const PROFILE = __ENV.PROFILE || 'ci';
 export const THINK = Number(__ENV.THINK ?? 1);
