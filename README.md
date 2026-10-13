@@ -14,6 +14,19 @@ else's server, and the results depend only on the code here.
 | CI | GitHub Actions: lint and app tests, then the smoke test as a gate, then load, stress and spike in parallel; soak nightly |
 | Finding | the stress test found that checkout queued without limit past about 90 orders/s; the app now sheds load (below) |
 
+## Quick start: one command per test
+
+New to k6? Read [docs/k6-for-beginners.md](docs/k6-for-beginners.md): what each test does, how to read the results,
+and what the words mean.
+
+```
+npm install          # once
+npm run smoke        # or: load, stress, spike, soak, regression
+```
+
+Each command starts its own copy of the shop, runs the test with live charts in the browser, saves and opens the
+HTML report, stops the shop, and prints PASSED or FAILED (`scripts/run.js`). Add `-- --no-open` to skip the browser.
+
 ## Tech stack
 
 | Tool | Version | Used for |
@@ -75,7 +88,8 @@ k6-performance-testing
 │       ├── spike.js          visitors x30 within 10 s, then back: survive and recover?
 │       └── soak.js           steady load for hours, server memory sampled every 10 s
 ├── reports/                  output of the runs (not in git)
-├── docs/                     design notes, interview questions, report screenshots
+├── scripts/run.js            npm run <test>: starts the shop, runs k6 with live charts, opens the report
+├── docs/                     beginner guide, design notes, interview questions, report screenshots
 └── .github/workflows/perf.yml
 ```
 
@@ -178,7 +192,8 @@ npm install                 # ESLint and Prettier only; the app has no dependenc
 
 ## Running
 
-Start the app in one terminal:
+The easiest way is the Quick start above (`npm run <test>`). To run k6 directly instead, start the app in one
+terminal:
 
 ```
 npm start                   # QuickShop on http://localhost:3000
@@ -260,6 +275,7 @@ production, run `PROFILE=full` from dedicated load generators against a producti
 
 ## More
 
+- [docs/k6-for-beginners.md](docs/k6-for-beginners.md): run the tests and read the results without knowing k6.
 - [docs/framework-design.md](docs/framework-design.md): the design decisions and their reasons.
 - [docs/interview-questions.md](docs/interview-questions.md) ([PDF](docs/interview-questions.pdf)): 78 performance
   testing and k6 interview questions, each linked to the code here.
