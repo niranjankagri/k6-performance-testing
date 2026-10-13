@@ -24,6 +24,11 @@ on:
         options: [ci, full]
         default: ci
 
+# A newer push to the same branch cancels the run still going: only the latest code is measured
+concurrency:
+  group: perf-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+
 env:
   NODE_VERSION: '24'
   K6_VERSION: '2.3.0'
