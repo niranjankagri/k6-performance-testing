@@ -52,11 +52,11 @@ export function markdown(testName, data) {
   return [
     `### k6 ${testName}: ${failed === 0 ? '✅ all thresholds met' : `❌ ${failed} threshold(s) not met`}`,
     '',
-    '| Requests | Failed requests | Requests/s | Iterations | Checks passed | Orders placed |',
-    '|---|---|---|---|---|---|',
+    '| Requests | Failed requests | Requests/s | Iterations | Checks passed | Orders placed | Orders refused (503) |',
+    '|---|---|---|---|---|---|---|',
     `| ${value('http_reqs', 'count') ?? 0} | ${((value('http_req_failed', 'rate') ?? 0) * 100).toFixed(2)}% | ` +
       `${(value('http_reqs', 'rate') ?? 0).toFixed(1)} | ${value('iterations', 'count') ?? 0} | ` +
-      `${((value('checks', 'rate') ?? 0) * 100).toFixed(2)}% | ${value('orders_placed', 'count') ?? 0} |`,
+      `${((value('checks', 'rate') ?? 0) * 100).toFixed(2)}% | ${value('orders_placed', 'count') ?? 0} | ${value('orders_refused', 'count') ?? 0} |`,
     '',
     '| Endpoint | median | p90 | p95 | max |',
     '|---|---|---|---|---|',

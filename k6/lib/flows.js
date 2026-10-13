@@ -15,6 +15,11 @@ import { CATEGORIES, PRODUCT_COUNT, randomInt, randomItem, SEARCH_TERMS, userFor
 export const checkoutDuration = new Trend('checkout_duration', true); // true = a time, shown in ms
 export const ordersPlaced = new Counter('orders_placed');
 export const orderSuccess = new Rate('order_success');
+// Overload: the shop refuses orders with 503 when too many already wait for the database
+export const ordersRefused = new Counter('orders_refused');
+// true when the order was placed correctly OR politely refused (503); false on anything else
+// (500, timeout, wrong total). The stress test needs this to be 100%: slow or busy is fine, wrong is not.
+export const orderHandled = new Rate('order_handled');
 
 /** For setup(): stop at once if the app is not up, instead of minutes of connection errors. */
 export function requireHealthyApp() {
@@ -106,6 +111,9 @@ export function buy() {
       'order: total matches the cart': (r) => r.status === 201 && r.json('total') === cart.json('total'),
     });
     orderSuccess.add(placed);
+    const refused = order.status === 503;
+    if (refused) ordersRefused.add(1);
+    orderHandled.add(placed || refused);
     if (!placed) return;
     ordersPlaced.add(1);
 

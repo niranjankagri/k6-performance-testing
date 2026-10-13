@@ -117,3 +117,21 @@ test('the pool lets at most `size` holders in and hands slots over in order', as
   assert.deepEqual(order, ['third', 'fourth']);
   assert.equal(pool.inUse, 2);
 });
+
+test('checkout sheds load: with the queue full, new orders get 503 at once instead of waiting', async () => {
+  // 60 users with a product in the cart check out at the same moment: 8 run, 40 wait, the rest are refused
+  const tokens = await Promise.all(
+    Array.from({ length: 60 }, async (_, i) => {
+      const token = await loginAs(`user${String(100 + i).padStart(3, '0')}`);
+      await call('DELETE', '/api/cart', { token });
+      await call('POST', '/api/cart/items', { token, body: { productId: 1, quantity: 1 } });
+      return token;
+    }),
+  );
+  const statuses = await Promise.all(
+    tokens.map(async (token) => (await call('POST', '/api/orders', { token })).status),
+  );
+  const refused = statuses.filter((s) => s === 503).length;
+  assert.equal(statuses.filter((s) => s === 201).length + refused, 60);
+  assert.ok(refused > 0, 'some orders should be refused');
+});

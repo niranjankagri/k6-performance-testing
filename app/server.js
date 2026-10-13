@@ -4,6 +4,7 @@
 //   PORT=4000 node app/server.js               # another port
 //   CHECKOUT_DELAY_MS=300 node app/server.js   # simulate a slow release: checkout 300 ms slower
 //   DB_POOL_SIZE=4 node app/server.js          # a smaller "database pool": saturates sooner
+//   MAX_WAITING=0 node app/server.js           # no load shedding: checkouts queue without limit
 //
 // Endpoints (JSON in and out; the cart and orders need "Authorization: Bearer <token>"):
 //   GET    /health                -> { status, uptimeSeconds, rssMb, orders } (the soak test watches rssMb)
@@ -14,7 +15,7 @@
 //   GET    /api/cart
 //   POST   /api/cart/items        { productId, quantity } -> 201 cart | 400 | 404
 //   DELETE /api/cart              -> 204
-//   POST   /api/orders            -> 201 order | 409 (empty cart)
+//   POST   /api/orders            -> 201 order | 409 (empty cart) | 503 (too busy, try again)
 //   GET    /api/orders/:id        -> 200 | 404 (unknown, or another user's order)
 
 import { createServer } from 'node:http';
@@ -24,6 +25,10 @@ import * as shop from './shop.js';
 
 const CHECKOUT_DELAY_MS = Number(process.env.CHECKOUT_DELAY_MS ?? 0);
 const dbPool = new shop.Pool(Number(process.env.DB_POOL_SIZE ?? 8));
+// Load shedding: with more checkouts than this already waiting for a connection, refuse new ones at
+// once (503) instead of letting the queue, and every customer's wait, grow without limit.
+// Found by the stress test; 0 switches it off to reproduce the original behaviour.
+const MAX_WAITING = Number(process.env.MAX_WAITING ?? 40);
 
 const send = (res, status, body) => {
   res.writeHead(status, { 'Content-Type': 'application/json' });
@@ -127,6 +132,10 @@ async function handle(req, res) {
     if (method === 'POST' && path === '/api/orders') {
       if (shop.cartOf(user).size === 0) return send(res, 409, { error: 'the cart is empty' });
       // The bottleneck: every checkout needs one of the few database connections
+      if (MAX_WAITING > 0 && dbPool.queue.length >= MAX_WAITING) {
+        res.setHeader('Retry-After', '1');
+        return send(res, 503, { error: 'too many orders right now, try again in a second' });
+      }
       await dbPool.acquire();
       try {
         await shop.delay(60 + CHECKOUT_DELAY_MS, 120 + CHECKOUT_DELAY_MS);
