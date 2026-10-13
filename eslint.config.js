@@ -6,7 +6,7 @@ export default [
   { ignores: ['node_modules/', 'reports/'] },
   js.configs.recommended,
   {
-    files: ['app/**/*.js', 'eslint.config.js', '.github/**/*.js'],
+    files: ['app/**/*.js', 'scripts/**/*.js', 'eslint.config.js', '.github/**/*.js'],
     languageOptions: { globals: globals.node },
   },
   {

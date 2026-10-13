@@ -9,6 +9,12 @@
   },
   "scripts": {
     "start": "node app/server.js",
+    "smoke": "node scripts/run.js smoke",
+    "load": "node scripts/run.js load",
+    "stress": "node scripts/run.js stress",
+    "spike": "node scripts/run.js spike",
+    "soak": "node scripts/run.js soak",
+    "regression": "node scripts/run.js regression",
     "test:app": "node --test app/*.test.js",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write ."
