@@ -84,9 +84,8 @@ jobs:
     name: ${{ matrix.test }} test
     # Only after the smoke test passed: no point loading a broken build
     needs: smoke
-    if: >-
-      ${{ always() && needs.smoke.result != 'failure' && needs.smoke.result != 'cancelled'
-      && (!inputs.test || inputs.test == 'all' || inputs.test == matrix.test) }}
+    # (a manual run of one test skips the smoke job, so "skipped" is fine here)
+    if: ${{ always() && needs.smoke.result != 'failure' && needs.smoke.result != 'cancelled' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -97,10 +96,15 @@ jobs:
           - test: stress
             think: '0'
     steps:
-      - name: Soak runs nightly and on demand only
+      # A job-level "if" cannot see the matrix, so this step decides whether this test runs:
+      # a manual run of one test skips the others, and the long soak test runs nightly or on demand only
+      - name: Run this test?
         id: gate
         run: |
-          if [ "${{ matrix.test }}" = "soak" ] && [ "${{ github.event_name }}" != "schedule" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+          chosen="${{ inputs.test || 'all' }}"
+          if [ "$chosen" != "all" ] && [ "$chosen" != "${{ matrix.test }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ matrix.test }}" = "soak" ] && [ "${{ github.event_name }}" != "schedule" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/checkout@v7
