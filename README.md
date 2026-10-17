@@ -64,6 +64,11 @@ These environment variables change the app's behaviour for experiments:
 `app/server.test.js` checks the API's behaviour with 10 tests, because a load test of an app that gives wrong
 answers measures nothing.
 
+**Why the app is in this repository:** the tests run against their own copy, started fresh for every run, locally and in
+CI. No shared or hosted environment means no outages, no test data shared between runs, and no change somewhere else
+that breaks these tests; one clone and one command run everything. It is also built for these tests: load and stress
+tests can push it to its limits without touching anyone's production system.
+
 ## Project structure
 
 ```
