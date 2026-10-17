@@ -20,7 +20,7 @@ own computer, so you never put load on anybody else's server.
 You need [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) and Node.js installed. Then, in a terminal:
 
 ```
-cd D:\Data\Work\k6-performance-testing      (in cmd.exe: cd /d D:\Data\Work\k6-performance-testing)
+cd D:\Data\Work\portfolio-projects\k6-performance-testing      (in cmd.exe: cd /d D:\Data\Work\portfolio-projects\k6-performance-testing)
 npm install                                 (only the very first time)
 npm run load
 ```
