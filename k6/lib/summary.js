@@ -50,6 +50,9 @@ export function markdown(testName, data) {
   const failed = Object.values(m)
     .flatMap((metric) => Object.values(metric.thresholds ?? {}))
     .filter((result) => !result.ok).length;
+  /**
+   * One value of a metric (for example http_reqs / count), or undefined when the test did not record that metric.
+   */
   const value = (name, key) => m[name]?.values[key];
   return [
     `### k6 ${testName}: ${failed === 0 ? '✅ all thresholds met' : `❌ ${failed} threshold(s) not met`}`,

@@ -49,6 +49,7 @@ if (!test) {
   process.exit(2);
 }
 
+/** Prints a step heading, so the run's output reads as a sequence of steps. */
 const say = (text) => console.log(`\n▶ ${text}`);
 
 /** Opens a file or URL with the system's default program (browser for .html). */
