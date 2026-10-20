@@ -16,6 +16,7 @@
     "soak": "node scripts/run.js soak",
     "regression": "node scripts/run.js regression",
     "test:app": "node --test app/*.test.js",
+    "test:app:ci": "node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=reports/junit-app.xml app/*.test.js",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write ."
   },

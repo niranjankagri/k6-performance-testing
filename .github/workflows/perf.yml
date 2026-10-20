@@ -48,8 +48,19 @@ jobs:
       - name: ESLint + Prettier
         run: npm run lint
       # The load tests only mean something if the app answers correctly
+      # (the same tests as npm run test:app, also written as JUnit XML)
       - name: App functional tests
-        run: npm run test:app
+        run: npm run test:app:ci
+      # JUnit XML only, as its own artifact: the CI results collection of
+      # automation-coverage-quality-intelligence imports it (config/producers.toml there)
+      - name: Keep the JUnit results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: junit-app
+          path: reports/junit-app.xml
+          if-no-files-found: warn
+          retention-days: 30
 
   smoke:
     name: Smoke test (gate)
@@ -84,6 +95,17 @@ jobs:
           name: report-smoke
           path: reports/
           if-no-files-found: ignore
+
+      # JUnit XML only, as its own artifact: the CI results collection of
+      # automation-coverage-quality-intelligence imports it (config/producers.toml there)
+      - name: Keep the JUnit results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: junit-smoke
+          path: reports/smoke-junit.xml
+          if-no-files-found: warn
+          retention-days: 30
 
   performance:
     name: ${{ matrix.test }} test
@@ -144,6 +166,17 @@ jobs:
           name: report-${{ matrix.test }}
           path: reports/
           if-no-files-found: ignore
+
+      # JUnit XML only, as its own artifact: the CI results collection of
+      # automation-coverage-quality-intelligence imports it (config/producers.toml there)
+      - name: Keep the JUnit results
+        if: ${{ !cancelled() && steps.gate.outputs.skip != 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: junit-${{ matrix.test }}
+          path: reports/${{ matrix.test }}-junit.xml
+          if-no-files-found: warn
+          retention-days: 30
 
   regression-demo:
     name: Regression demo (fails on purpose)

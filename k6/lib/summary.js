@@ -4,6 +4,7 @@
 //   stdout                         the normal console summary
 //   reports/<test>-summary.json    every metric, for tools or a later comparison
 //   reports/<test>-summary.md      thresholds and key numbers as Markdown (CI shows it on the run page)
+//   reports/<test>-junit.xml       one JUnit test case per threshold (for CI result collections)
 //
 // The HTML report comes from k6's web dashboard (K6_WEB_DASHBOARD_EXPORT), see the README.
 
@@ -75,11 +76,51 @@ export function markdown(testName, data) {
   ].join('\n');
 }
 
+/** Text with the five XML special characters escaped, for attribute values. */
+const xml = (text) =>
+  String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+
+/**
+ * JUnit XML of a test: one test case per threshold, failed when k6 reports it as not met. Thresholds are the
+ * test's pass/fail criteria, so this is what a CI result collection (automation-coverage-quality-intelligence)
+ * should count; the numbers themselves stay in the JSON and Markdown summaries.
+ */
+export function junit(testName, data) {
+  const cases = [];
+  let failures = 0;
+  for (const [name, metric] of Object.entries(data.metrics)) {
+    for (const [rule, result] of Object.entries(metric.thresholds ?? {})) {
+      const id = `${name} ${rule}`;
+      const failure = result.ok ? '' : `<failure message="${xml(`threshold not met: ${id}`)}"/>`;
+      failures += result.ok ? 0 : 1;
+      cases.push(
+        `    <testcase classname="k6.${xml(testName)}" name="${xml(id)}" time="0">${failure}</testcase>`,
+      );
+    }
+  }
+  const seconds = ((data.state?.testRunDurationMs ?? 0) / 1000).toFixed(3);
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<testsuites>',
+    `  <testsuite name="k6 ${xml(testName)}" tests="${cases.length}" failures="${failures}" errors="0" skipped="0" time="${seconds}">`,
+    ...cases,
+    '  </testsuite>',
+    '</testsuites>',
+    '',
+  ].join('\n');
+}
+
 /** Builds the handleSummary function of one test; the name is used in the file names under reports/. */
 export function summaryFor(testName) {
   return (data) => ({
     stdout: textSummary(data, { indent: ' ', enableColors: true }),
     [`reports/${testName}-summary.json`]: JSON.stringify(data, null, 2),
     [`reports/${testName}-summary.md`]: markdown(testName, data),
+    [`reports/${testName}-junit.xml`]: junit(testName, data),
   });
 }
