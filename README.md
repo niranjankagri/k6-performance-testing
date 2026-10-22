@@ -271,9 +271,14 @@ Every test job:
 - starts its own QuickShop;
 - installs k6 with `grafana/setup-k6-action`;
 - writes the Markdown summary to the run summary page;
-- uploads `reports/` (HTML dashboard and JSON) as an artifact.
+- uploads `reports/` (HTML dashboard and JSON) as an artifact;
+- uploads its JUnit XML (one test case per threshold) as `junit-<test>`, which
+  [Automation Coverage & Quality Intelligence](https://github.com/niranjankagri/automation-coverage-quality-intelligence) collects for smoke, load, stress and spike. The
+  app tests of the first job go to `junit-app`.
 
 A manual run (Run workflow) can pick one test, the `full` profile, or the regression demo.
+
+`main` is protected by a ruleset: every change goes through a pull request, and the CI jobs above must pass before it is merged.
 
 Load from a shared CI runner is good enough to catch regressions at these sizes. For capacity numbers that hold for
 production, run `PROFILE=full` from dedicated load generators against a production-like environment.
@@ -284,3 +289,7 @@ production, run `PROFILE=full` from dedicated load generators against a producti
 - [docs/framework-design.md](docs/framework-design.md): the design decisions and their reasons.
 - [docs/interview-questions.md](docs/interview-questions.md) ([PDF](docs/interview-questions.pdf)): 78 performance
   testing and k6 interview questions, each linked to the code here.
+
+## License
+
+[MIT](LICENSE)
