@@ -278,6 +278,8 @@ Every test job:
 
 A manual run (Run workflow) can pick one test, the `full` profile, or the regression demo.
 
+Dependabot proposes dependency and GitHub Actions updates once a month (minor and patch updates grouped, major versions as separate pull requests).
+
 `main` is protected by a ruleset: every change goes through a pull request, and the CI jobs above must pass before it is merged.
 
 Load from a shared CI runner is good enough to catch regressions at these sizes. For capacity numbers that hold for
