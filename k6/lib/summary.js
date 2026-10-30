@@ -1,4 +1,4 @@
-// End-of-test summary. Each test exports `handleSummary = summaryFor('<test name>')`; k6 calls it once
+// End-of-test summary. Each test exports `handleSummary = summaryFor('<test name>', '<case id>')`; k6 calls it once
 // at the end with all metrics, and writes every returned entry to that file (or to stdout).
 //
 //   stdout                         the normal console summary
@@ -45,8 +45,11 @@ function checkoutRow(metrics) {
     : [];
 }
 
+/** "[TC-302] load": the test name with its test case ID (docs/manual-test-cases.md) in front, when there is one. */
+const title = (testName, caseId) => (caseId ? `[${caseId}] ${testName}` : testName);
+
 /** The Markdown report: a verdict line, totals, response times per endpoint and every threshold. */
-export function markdown(testName, data) {
+export function markdown(testName, data, caseId) {
   const m = data.metrics;
   const failed = Object.values(m)
     .flatMap((metric) => Object.values(metric.thresholds ?? {}))
@@ -56,7 +59,7 @@ export function markdown(testName, data) {
    */
   const value = (name, key) => m[name]?.values[key];
   return [
-    `### k6 ${testName}: ${failed === 0 ? '✅ all thresholds met' : `❌ ${failed} threshold(s) not met`}`,
+    `### k6 ${title(testName, caseId)}: ${failed === 0 ? '✅ all thresholds met' : `❌ ${failed} threshold(s) not met`}`,
     '',
     '| Requests | Failed requests | Requests/s | Iterations | Checks passed | Orders placed | Orders refused (503) |',
     '|---|---|---|---|---|---|---|',
@@ -88,9 +91,10 @@ const xml = (text) =>
 /**
  * JUnit XML of a test: one test case per threshold, failed when k6 reports it as not met. Thresholds are the
  * test's pass/fail criteria, so this is what a CI result collection (automation-coverage-quality-intelligence)
- * should count; the numbers themselves stay in the JSON and Markdown summaries.
+ * should count; the numbers themselves stay in the JSON and Markdown summaries. The case ID goes into the suite
+ * name only: classname and test case names stay as they were, so collected results keep their history.
  */
-export function junit(testName, data) {
+export function junit(testName, data, caseId) {
   const cases = [];
   let failures = 0;
   for (const [name, metric] of Object.entries(data.metrics)) {
@@ -107,7 +111,7 @@ export function junit(testName, data) {
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<testsuites>',
-    `  <testsuite name="k6 ${xml(testName)}" tests="${cases.length}" failures="${failures}" errors="0" skipped="0" time="${seconds}">`,
+    `  <testsuite name="k6 ${xml(title(testName, caseId))}" tests="${cases.length}" failures="${failures}" errors="0" skipped="0" time="${seconds}">`,
     ...cases,
     '  </testsuite>',
     '</testsuites>',
@@ -115,12 +119,15 @@ export function junit(testName, data) {
   ].join('\n');
 }
 
-/** Builds the handleSummary function of one test; the name is used in the file names under reports/. */
-export function summaryFor(testName) {
+/**
+ * Builds the handleSummary function of one test; the name is used in the file names under reports/, the case ID
+ * (e.g. 'TC-302') in the report titles.
+ */
+export function summaryFor(testName, caseId) {
   return (data) => ({
     stdout: textSummary(data, { indent: ' ', enableColors: true }),
     [`reports/${testName}-summary.json`]: JSON.stringify(data, null, 2),
-    [`reports/${testName}-summary.md`]: markdown(testName, data),
-    [`reports/${testName}-junit.xml`]: junit(testName, data),
+    [`reports/${testName}-summary.md`]: markdown(testName, data, caseId),
+    [`reports/${testName}-junit.xml`]: junit(testName, data, caseId),
   });
 }

@@ -10,6 +10,8 @@ import { summaryFor } from '../lib/summary.js';
 import { RESPONSE_TIMES } from '../lib/thresholds.js';
 
 export const options = {
+  // Test case ID (docs/manual-test-cases.md) on every metric, so results can be filtered by it
+  tags: { testid: 'TC-301' },
   vus: 1,
   duration: byProfile({ ci: '30s', full: '1m' }),
   thresholds: {
@@ -31,4 +33,4 @@ export default function () {
 }
 
 // End of test: console summary, reports/smoke-summary.json and .md (see lib/summary.js)
-export const handleSummary = summaryFor('smoke');
+export const handleSummary = summaryFor('smoke', 'TC-301');
