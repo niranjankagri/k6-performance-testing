@@ -140,6 +140,8 @@ What happens in `k6 run k6/tests/load.js`:
 
 ## The tests
 
+Each test is a test case with an ID (smoke TC-301, load TC-302, stress TC-303, spike TC-304, soak TC-305): k6 tags every metric with it (`testid`) and puts it in the report titles. Goal, workload, pass criteria and what to watch are written out per case in [docs/manual-test-cases.md](docs/manual-test-cases.md).
+
 | Test | Question it answers | Load (ci profile) | Passes when |
 |---|---|---|---|
 | `smoke.js` | do the system and the scripts work at all? | 1 VU, 30 s | no failed request, every check passes, endpoint SLOs met |

@@ -12,6 +12,8 @@ import { browse, buy, requireHealthyApp } from '../lib/flows.js';
 import { summaryFor } from '../lib/summary.js';
 
 export const options = {
+  // Test case ID (docs/manual-test-cases.md) on every metric, so results can be filtered by it
+  tags: { testid: 'TC-304' },
   scenarios: {
     visitor_spike: {
       executor: 'ramping-vus',
@@ -74,4 +76,4 @@ export function buying() {
 }
 
 // End of test: console summary, reports/spike-summary.json and .md (see lib/summary.js)
-export const handleSummary = summaryFor('spike');
+export const handleSummary = summaryFor('spike', 'TC-304');

@@ -23,6 +23,8 @@ const serverMemory = new Trend('server_rss_mb'); // MB, not a time
 const DURATION = byProfile({ ci: '4m', full: '4h' });
 
 export const options = {
+  // Test case ID (docs/manual-test-cases.md) on every metric, so results can be filtered by it
+  tags: { testid: 'TC-305' },
   scenarios: {
     browsers: {
       executor: 'constant-vus',
@@ -91,4 +93,4 @@ export function teardown(data) {
 }
 
 // End of test: console summary, reports/soak-summary.json and .md (see lib/summary.js)
-export const handleSummary = summaryFor('soak');
+export const handleSummary = summaryFor('soak', 'TC-305');

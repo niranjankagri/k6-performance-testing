@@ -18,6 +18,8 @@ import { summaryFor } from '../lib/summary.js';
 import { SLO } from '../lib/thresholds.js';
 
 export const options = {
+  // Test case ID (docs/manual-test-cases.md) on every metric, so results can be filtered by it
+  tags: { testid: 'TC-302' },
   scenarios: {
     browsers: {
       executor: 'ramping-vus',
@@ -71,4 +73,4 @@ export function buying() {
 }
 
 // End of test: console summary, reports/load-summary.json and .md (see lib/summary.js)
-export const handleSummary = summaryFor('load');
+export const handleSummary = summaryFor('load', 'TC-302');
